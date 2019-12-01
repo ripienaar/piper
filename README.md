@@ -28,7 +28,7 @@ $ piper listen xyz | notify-send "Job Done"
 
 ## Multi Producer to Load shared grouped Consumers
 
-To demonstrate the load shared group we can resize a set of images across 2 shells, more useful utilities would be to fetch images from a s3 bucket and put smaller ones back, the requests would just be the file names or urls, but lets keep it simple:
+To demonstrate the load shared group we can resize a set of png images across 2 shells, more useful utilities would be to fetch images from a s3 bucket and put smaller ones back, the requests would just be the file names or urls, but lets keep it simple:
 
 On one shell run this:
 
@@ -49,8 +49,9 @@ On four other shells run this:
 while true
 do
   filename=$(piper listen resize --group)
+  base=$(basename "${filename}" .png)
   echo $filename
-  convert -size 50%x50% "${filename}" "$(basename '$filename')-small.jpg"
+  convert -size 50%x50% "${filename}" "${base}-small.jpg"
 done
 ```
 
