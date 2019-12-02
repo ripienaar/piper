@@ -72,6 +72,6 @@ func (l *Listener) ibHandler(m *nats.Msg) {
 		return
 	}
 
-	fmt.Println(string(m.Data))
+	fmt.Print(string(m.Data))
 	l.donec <- struct{}{}
 }

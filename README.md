@@ -2,15 +2,36 @@
 
 Piper is a [https://patchbay.pub/](https://patchbay.pub/) inspired shell tool that lets you connect separate shells together.
 
-Like patchbay it has two basic modes of operation, either multi consumer and multi producer or a pubsub style multi producer to a load shared group of consumers.
+Like patchbay it has two basic modes of operation, either multi consumer and multi producer or a work queue style multi producer to a load shared group of consumers.
+
+Like patchbay the publisher will block until there are consumers.
 
 ## Setup
 
 To use it you need a [NATS](https://nats.io) server, or you can sign up for a free [NGS](https://synadia.com/ngs) account.
 
-To use your own NATS server set `PIPER_SERVER=your.nats.server:4222`, to use NGS set `PIPE_SERVER=connect.ngs.global:4222`.
+To use your own NATS server set `PIPER_SERVER=your.nats.server:4222`.
 
 If you need a NATS credential, such as with NGS, set `PIPER_CREDENTIAL=/path/to/your.creds`.
+
+### NGS
+
+If you use a [NGS](https://synadia.com/ngs) account - free tier is fine for most uses of this tool - you can create a user just for piper like this:
+
+```
+$ nsc add user -a YOUR_ACCOUNT --allow-pub "piper.>,_INBOX.>" --allow-sub "piper.>,_INBOX.>" --name piper
+```
+
+Just change `YOUR_ACCOUNT` to your own account name, then:
+
+```
+$ export PIPER_SERVERS=connect.ngs.global:4222
+$ export PIPER_CREDENTIALS=~/.nkeys/creds/synadia/YOUR_ACCOUNT/piper.creds
+```
+
+And you're good to go, you'll now connect to your nearest NGS server and the traffic will securely travel within your own account with no others being able to see it.
+
+The subject names that piper makes are basically `piper.<name>`, so using the standard facilities in NGS `nsc` utility you could share piper data between different accounts securely.
 
 ## Multi Producer to Multi Consumer
 
@@ -41,7 +62,7 @@ do
 done
 ```
 
-On four other shells run this:
+On 2 other shells run this:
 
 ```
 #!/bin/bash
@@ -54,6 +75,8 @@ do
   convert -size 50%x50% "${filename}" "${base}-small.jpg"
 done
 ```
+
+Your images will now be resized using max 2 cores.
 
 ## Status?
 

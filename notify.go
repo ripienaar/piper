@@ -33,7 +33,8 @@ func (n *Notifier) Notify(ctx context.Context) error {
 	}
 
 	reader := bufio.NewReader(os.Stdin)
-	text, err := reader.ReadString('\n')
+	text := make([]byte, reader.Size())
+	_, err = reader.Read(text)
 	if err != nil {
 		return fmt.Errorf("could not read STDIN: %s", err)
 	}
