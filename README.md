@@ -14,7 +14,7 @@ To use your own NATS server set `PIPER_SERVER=your.nats.server:4222`.
 
 If you need a NATS credential, such as with NGS, set `PIPER_CREDENTIAL=/path/to/your.creds`.
 
-### NGS
+### NGS
 
 If you use a [NGS](https://synadia.com/ngs) account - free tier is fine for most uses of this tool - you can create a user just for piper like this:
 
