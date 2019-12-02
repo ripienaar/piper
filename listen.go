@@ -3,19 +3,17 @@ package main
 import (
 	"context"
 	"fmt"
-	"os"
 
 	"github.com/nats-io/nats.go"
 	log "github.com/sirupsen/logrus"
 )
 
 type Listener struct {
-	Name         string
-	Group        bool
-	Credentials  string
-	Servers      string
-	DiscoverSubj string
-	DataSubj     string
+	Name        string
+	Group       bool
+	Credentials string
+	Servers     string
+	DataSubj    string
 
 	nc    *nats.Conn
 	donec chan struct{}
@@ -23,22 +21,14 @@ type Listener struct {
 }
 
 func NewListener() *Listener {
-	var ds string
-	if listenGroup {
-		ds = nats.NewInbox()
-	} else {
-		ds = "piper." + listenName + ".data"
-	}
-
 	return &Listener{
-		Name:         listenName,
-		Group:        listenGroup,
-		Credentials:  creds,
-		Servers:      servers,
-		DiscoverSubj: "piper." + listenName + ".discover",
-		DataSubj:     ds,
-		donec:        make(chan struct{}),
-		errc:         make(chan error),
+		Name:        listenName,
+		Group:       listenGroup,
+		Credentials: creds,
+		Servers:     servers,
+		DataSubj:    "piper." + listenName,
+		donec:       make(chan struct{}),
+		errc:        make(chan error),
 	}
 }
 
@@ -49,25 +39,23 @@ func (l *Listener) Listen(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("could not connect to NATS: %s", err)
 	}
+	defer l.close()
 
-	log.Debugf("Listening on %s", l.DataSubj)
-	l.nc.Subscribe(l.DataSubj, l.ibHandler)
-
-	log.Debugf("Listening on %s", l.DiscoverSubj)
-	dc, _ := l.nc.QueueSubscribe(l.DiscoverSubj, "piper", l.discoverHandler)
-	dc.AutoUnsubscribe(1)
+	if l.Group {
+		log.Debugf("Listening on %s in a group", l.DataSubj)
+		l.nc.QueueSubscribe(l.DataSubj, "piper", l.ibHandler)
+	} else {
+		log.Debugf("Listening on %s", l.DataSubj)
+		l.nc.Subscribe(l.DataSubj, l.ibHandler)
+	}
 
 	select {
 	case <-ctx.Done():
 	case <-l.donec:
-	case err := <-l.errc:
-		fmt.Fprintln(os.Stderr, err)
-		l.close()
-		os.Exit(1)
+	case err = <-l.errc:
 	}
 
-	l.close()
-	return nil
+	return err
 }
 
 func (l *Listener) close() {
@@ -76,6 +64,8 @@ func (l *Listener) close() {
 }
 
 func (l *Listener) ibHandler(m *nats.Msg) {
+	m.Sub.Unsubscribe()
+
 	err := m.Respond([]byte{})
 	if err != nil {
 		l.errc <- fmt.Errorf("Data response failed: %s", err)
@@ -84,17 +74,4 @@ func (l *Listener) ibHandler(m *nats.Msg) {
 
 	fmt.Println(string(m.Data))
 	l.donec <- struct{}{}
-}
-
-func (l *Listener) discoverHandler(m *nats.Msg) {
-	if m.Reply == "" {
-		l.errc <- fmt.Errorf("no reply subject received on discovery channel")
-		return
-	}
-
-	log.Debugf("Replying to discovery request")
-	err := m.Respond([]byte(l.DataSubj))
-	if err != nil {
-		l.errc <- fmt.Errorf("Discovery response failed: %s", err)
-	}
 }
