@@ -15,6 +15,7 @@ type Notifier struct {
 	Credentials string
 	Servers     string
 	Subject     string
+	Message     string
 }
 
 func NewNotifier() *Notifier {
@@ -23,6 +24,7 @@ func NewNotifier() *Notifier {
 		Credentials: creds,
 		Servers:     servers,
 		Subject:     "piper." + notifierName,
+		Message:     notifierMessage,
 	}
 }
 
@@ -32,19 +34,22 @@ func (n *Notifier) Notify(ctx context.Context) error {
 		return fmt.Errorf("could not connect to NATS: %s", err)
 	}
 
-	reader := bufio.NewReader(os.Stdin)
-	text := make([]byte, reader.Size())
-	_, err = reader.Read(text)
-	if err != nil {
-		return fmt.Errorf("could not read STDIN: %s", err)
+	if n.Message == "" {
+		reader := bufio.NewReader(os.Stdin)
+		text := make([]byte, reader.Size())
+		_, err = reader.Read(text)
+		if err != nil {
+			return fmt.Errorf("could not read STDIN: %s", err)
+		}
+		n.Message = string(text)
 	}
 
 	for {
 		timeout, cancel := context.WithTimeout(ctx, 2*time.Second)
 		defer cancel()
 
-		log.Debugf("Sending %d bytes of data to %s", len(text), n.Subject)
-		_, err = nc.RequestWithContext(timeout, n.Subject, []byte(text))
+		log.Debugf("Sending %d bytes of data to %s", len(n.Message), n.Subject)
+		_, err = nc.RequestWithContext(timeout, n.Subject, []byte(n.Message))
 
 		if err == nil {
 			return nil

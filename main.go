@@ -3,8 +3,8 @@ package main
 import (
 	"context"
 	"fmt"
-	kingpin "gopkg.in/alecthomas/kingpin.v2"
 	"github.com/sirupsen/logrus"
+	kingpin "gopkg.in/alecthomas/kingpin.v2"
 	"os"
 )
 
@@ -15,8 +15,9 @@ var (
 	servers string
 	debug   bool
 
-	notifier     *kingpin.CmdClause
-	notifierName string
+	notifier        *kingpin.CmdClause
+	notifierName    string
+	notifierMessage string
 
 	listener    *kingpin.CmdClause
 	listenName  string
@@ -35,6 +36,7 @@ func main() {
 
 	notifier = piper.Command("notify", "Notifies listeners")
 	notifier.Arg("name", "Pipe name to publish a message to").Required().StringVar(&notifierName)
+	notifier.Arg("message", "The message to sent, reads STDIN otherwise").StringVar(&notifierMessage)
 
 	command := kingpin.MustParse(piper.Parse(os.Args[1:]))
 	var err error
@@ -45,7 +47,7 @@ func main() {
 	if debug {
 		logrus.SetLevel(logrus.DebugLevel)
 	}
-	
+
 	switch command {
 	case "listen":
 		err = NewListener().Listen(ctx)
