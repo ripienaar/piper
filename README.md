@@ -11,13 +11,13 @@ Like patchbay the publisher will block until there are consumers, by default it 
 On any server:
 
 ```
-$ ./longjob.sh && piper notify xyz "long job completed"
+$ ./longjob.sh && piper say "long job completed"
 ```
 
 On one of many desktops, they will all get the message, here using the OS X CLI tool `say` that reads up whatever it receives over your speakers:
 
 ```
-$ piper listen xyz | xargs say
+$ piper listen say | xargs say
 ```
 
 ## Network aware clipboard
@@ -34,7 +34,7 @@ end
 Now on any other machine you can send data to your clipboard quite easily:
 
 ```
-$ ls | piper notify clipboard
+$ ls | piper clipboard
 ```
 
 ## Multi Producer to Load shared grouped Consumers

@@ -36,7 +36,7 @@ func main() {
 	listener.Arg("name", "Pipe name to wait on for a message").Required().StringVar(&name)
 	listener.Flag("group", "Listen on a group").BoolVar(&listenGroup)
 
-	notifier = piper.Command("notify", "Notifies listeners")
+	notifier = piper.Command("notify", "Notifies listeners").Default()
 	notifier.Arg("name", "Pipe name to publish a message to").Required().StringVar(&name)
 	notifier.Arg("message", "The message to sent, reads STDIN otherwise").StringVar(&notifierMessage)
 	notifier.Flag("timeout", "How long to wait for a listener to login before giving up").Default("1h").Envar("PIPER_TIMEOUT").DurationVar(&notifierTimeout)
