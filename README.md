@@ -8,21 +8,27 @@ Like patchbay the publisher will block until there are consumers, by default it 
 
 ## Multi Producer to Multi Consumer
 
-On any server:
+The n:n mode means any one can send a notify and any listeners on the given channel will all get the message, here are a few use cases.
 
-```
-$ ./longjob.sh && piper say "long job completed"
-```
+### Network aware speech synth
 
-On one of many desktops, they will all get the message, here using the OS X CLI tool `say` that reads up whatever it receives over your speakers:
+On your desktop(s) listen to messages, here using the OS X CLI tool `say` that reads out whatever it receives over your speakers:
 
 ```
 $ piper listen say | xargs say
 ```
 
+On any other machine:
+
+```
+$ ./longjob.sh ; piper say "long job completed"
+```
+
+Once `longjob.sh` completes your speakers will say it's done.
+
 ## Network aware clipboard
 
-On your desktop run this:
+On your desktop(s) run this:
 
 ```
 while true
