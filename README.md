@@ -4,20 +4,37 @@ Piper is a [https://patchbay.pub/](https://patchbay.pub/) inspired shell tool th
 
 Like patchbay it has two basic modes of operation, either multi consumer and multi producer or a work queue style multi producer to a load shared group of consumers.
 
-Like patchbay the publisher will block until there are consumers, by default it will give up after 1 hour, you can adjust this using `--timeout 5m` for example.
+Like patchbay the publisher will block until there are consumers, by default it will give up after 1 hour, you can adjust this using `--timeout 5m` or by setting `PIPER_TIMEOUT=5m` for example.
 
 ## Multi Producer to Multi Consumer
 
 On any server:
 
 ```
-$ ./longjob.sh && echo done | piper notify xyz
+$ ./longjob.sh && piper notify xyz "long job completed"
 ```
 
-On one of many desktops, they will all get the message:
+On one of many desktops, they will all get the message, here using the OS X CLI tool `say` that reads up whatever it receives over your speakers:
 
 ```
-$ piper listen xyz | notify-send "Job Done"
+$ piper listen xyz | xargs say
+```
+
+## Network aware clipboard
+
+On your desktop run this:
+
+```
+while true
+do
+  piper listen clipboard | pbcopy
+end
+```
+
+Now on any other machine you can send data to your clipboard quite easily:
+
+```
+$ ls | piper notify clipboard
 ```
 
 ## Multi Producer to Load shared grouped Consumers

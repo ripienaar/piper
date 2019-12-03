@@ -31,6 +31,10 @@ func NewNotifier() *Notifier {
 }
 
 func (n *Notifier) Notify(ctx context.Context) error {
+	if n.Timeout == 0 {
+		n.Timeout = 1 * time.Hour
+	}
+
 	timeout, cancel := context.WithTimeout(ctx, n.Timeout)
 	defer cancel()
 

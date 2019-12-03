@@ -39,7 +39,7 @@ func main() {
 	notifier = piper.Command("notify", "Notifies listeners")
 	notifier.Arg("name", "Pipe name to publish a message to").Required().StringVar(&name)
 	notifier.Arg("message", "The message to sent, reads STDIN otherwise").StringVar(&notifierMessage)
-	notifier.Flag("timeout", "How long to wait for a listener to login before giving up").Default("1h").DurationVar(&notifierTimeout)
+	notifier.Flag("timeout", "How long to wait for a listener to login before giving up").Default("1h").Envar("PIPER_TIMEOUT").DurationVar(&notifierTimeout)
 
 	command := kingpin.MustParse(piper.Parse(os.Args[1:]))
 	var err error
