@@ -4,7 +4,7 @@ Piper is a [https://patchbay.pub/](https://patchbay.pub/) inspired shell tool th
 
 Like patchbay it has two basic modes of operation, either multi consumer and multi producer or a work queue style multi producer to a load shared group of consumers.
 
-Like patchbay the publisher will block until there are consumers.
+Like patchbay the publisher will block until there are consumers, by default it will give up after 1 hour, you can adjust this using `--timeout 5m` for example.
 
 ## Multi Producer to Multi Consumer
 

@@ -22,11 +22,11 @@ type Listener struct {
 
 func NewListener() *Listener {
 	return &Listener{
-		Name:        listenName,
+		Name:        name,
 		Group:       listenGroup,
 		Credentials: creds,
 		Servers:     servers,
-		DataSubj:    "piper." + listenName,
+		DataSubj:    "piper." + name,
 		donec:       make(chan struct{}),
 		errc:        make(chan error),
 	}

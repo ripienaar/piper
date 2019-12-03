@@ -6,6 +6,7 @@ import (
 	"github.com/sirupsen/logrus"
 	kingpin "gopkg.in/alecthomas/kingpin.v2"
 	"os"
+	"time"
 )
 
 var (
@@ -15,12 +16,13 @@ var (
 	servers string
 	debug   bool
 
+	name string
+
 	notifier        *kingpin.CmdClause
-	notifierName    string
 	notifierMessage string
+	notifierTimeout time.Duration
 
 	listener    *kingpin.CmdClause
-	listenName  string
 	listenGroup bool
 )
 
@@ -31,12 +33,13 @@ func main() {
 	piper.Flag("debug", "Enable debug logging").BoolVar(&debug)
 
 	listener = piper.Command("listen", "Listen for messages on the pipe")
-	listener.Arg("name", "Pipe name to wait on for a message").Required().StringVar(&listenName)
+	listener.Arg("name", "Pipe name to wait on for a message").Required().StringVar(&name)
 	listener.Flag("group", "Listen on a group").BoolVar(&listenGroup)
 
 	notifier = piper.Command("notify", "Notifies listeners")
-	notifier.Arg("name", "Pipe name to publish a message to").Required().StringVar(&notifierName)
+	notifier.Arg("name", "Pipe name to publish a message to").Required().StringVar(&name)
 	notifier.Arg("message", "The message to sent, reads STDIN otherwise").StringVar(&notifierMessage)
+	notifier.Flag("timeout", "How long to wait for a listener to login before giving up").Default("1h").DurationVar(&notifierTimeout)
 
 	command := kingpin.MustParse(piper.Parse(os.Args[1:]))
 	var err error
@@ -60,7 +63,7 @@ func main() {
 	}
 
 	if err != nil {
-		fmt.Fprintf(os.Stderr, err.Error())
+		fmt.Fprintln(os.Stderr, err.Error())
 		os.Exit(1)
 	}
 }
