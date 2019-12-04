@@ -14,6 +14,7 @@ var (
 
 	creds   string
 	servers string
+	ngs     bool
 	debug   bool
 
 	name string
@@ -30,6 +31,7 @@ func main() {
 	piper = kingpin.New("piper", "Network pipes")
 	piper.Flag("creds", "NATS credentials").Envar("PIPER_CREDENTIALS").StringVar(&creds)
 	piper.Flag("servers", "NATS servers").Envar("PIPER_SERVERS").StringVar(&servers)
+	piper.Flag("ngs", "Use Synadia NGS").Envar("PIPER_NGS").BoolVar(&ngs)
 	piper.Flag("debug", "Enable debug logging").BoolVar(&debug)
 
 	listener = piper.Command("listen", "Listen for messages on the pipe")
@@ -47,8 +49,13 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	logrus.SetOutput(os.Stderr)
 	if debug {
 		logrus.SetLevel(logrus.DebugLevel)
+	}
+
+	if ngs && servers == "" {
+		servers = "connect.ngs.global:4222"
 	}
 
 	switch command {

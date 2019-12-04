@@ -35,6 +35,8 @@ func (n *Notifier) Notify(ctx context.Context) error {
 		n.Timeout = 1 * time.Hour
 	}
 
+	log.Debugf("Publishing to %s with a timeout of %v", n.Name, n.Timeout)
+
 	timeout, cancel := context.WithTimeout(ctx, n.Timeout)
 	defer cancel()
 
@@ -53,20 +55,30 @@ func (n *Notifier) Notify(ctx context.Context) error {
 		n.Message = string(text)
 	}
 
+	compressed, err := compress(n.Message)
+	if err != nil {
+		return fmt.Errorf("compression failed: %s", err)
+	}
+
 	for {
 		attemptTimeout, attemptCancel := context.WithTimeout(timeout, 2*time.Second)
 		defer attemptCancel()
 
-		log.Debugf("Sending %d bytes of data to %s", len(n.Message), n.Subject)
-		_, err = nc.RequestWithContext(attemptTimeout, n.Subject, []byte(n.Message))
-		if err == context.Canceled || err == context.DeadlineExceeded {
-			return fmt.Errorf("notify interrupted: %w", err)
-		}
-
+		log.Debugf("Sending %d bytes of data compressed to %d on subject %s", len(n.Message), len(compressed), n.Subject)
+		_, err = nc.RequestWithContext(attemptTimeout, n.Subject, compressed)
 		if err == nil {
 			return nil
 		}
 
-		log.Debugf("Sending failed, will retry: %s", err)
+		if err != context.Canceled && err != context.DeadlineExceeded {
+			log.Errorf("notification failed, will retry in a second: %s", err)
+			time.Sleep(time.Second)
+			continue
+		}
+
+		err = timeout.Err()
+		if err != nil {
+			return fmt.Errorf("timeout after %v", n.Timeout)
+		}
 	}
 }

@@ -15,9 +15,8 @@ type Listener struct {
 	Servers     string
 	DataSubj    string
 
-	nc    *nats.Conn
-	donec chan struct{}
-	errc  chan error
+	nc   *nats.Conn
+	errc chan error
 }
 
 func NewListener() *Listener {
@@ -27,7 +26,6 @@ func NewListener() *Listener {
 		Credentials: creds,
 		Servers:     servers,
 		DataSubj:    "piper." + name,
-		donec:       make(chan struct{}),
 		errc:        make(chan error),
 	}
 }
@@ -42,7 +40,7 @@ func (l *Listener) Listen(ctx context.Context) error {
 	defer l.close()
 
 	if l.Group {
-		log.Debugf("Listening on %s in a group", l.DataSubj)
+		log.Debugf("Listening on %s in a work group", l.DataSubj)
 		l.nc.QueueSubscribe(l.DataSubj, "piper", l.ibHandler)
 	} else {
 		log.Debugf("Listening on %s", l.DataSubj)
@@ -51,7 +49,6 @@ func (l *Listener) Listen(ctx context.Context) error {
 
 	select {
 	case <-ctx.Done():
-	case <-l.donec:
 	case err = <-l.errc:
 	}
 
@@ -68,10 +65,16 @@ func (l *Listener) ibHandler(m *nats.Msg) {
 
 	err := m.Respond([]byte{})
 	if err != nil {
-		l.errc <- fmt.Errorf("Data response failed: %s", err)
+		l.errc <- fmt.Errorf("acknowledgement failed: %s", err)
 		return
 	}
 
-	fmt.Print(string(m.Data))
-	l.donec <- struct{}{}
+	body, err := decompress(m.Data)
+	if err != nil {
+		l.errc <- fmt.Errorf("decompression failed: %s", err)
+	}
+
+	fmt.Print(body)
+
+	l.errc <- nil
 }
