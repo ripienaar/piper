@@ -66,11 +66,12 @@ func main() {
 		err = NewNotifier().Notify(ctx)
 
 	default:
-		err = fmt.Errorf("Invalid command %s", command)
+		err = fmt.Errorf("invalid command %s", command)
 	}
 
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
+		fmt.Fprintf(os.Stderr, "failed to run: %v", err)
+		cancel()
 		os.Exit(1)
 	}
 }
