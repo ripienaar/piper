@@ -6,7 +6,7 @@ You can use it to build things like network aware clipboards, notifications from
 
  * It has two basic modes of operation: multi consumer and multi producer or a work queue style multi producer to a load shared group of consumers
  * By default the publisher will block until there are consumers, by default it will give up after 1 hour, you can adjust this using `--timeout 5m` or by setting `PIPER_TIMEOUT=5m` for example
- * An, asynchronous mode that avoid above blocking, is support if you have NATS JetStream
+ * An asynchronous mode, that avoid above blocking, is support if you have NATS JetStream
  * In synchronous mode no data is stored, it's all ephemeral and the data is private to either your own NATS servers or your account on Synadia NGS (NATS as a Service). This means we won't be doing anything like serving web pages but with the shell utility scope I quite like it
  * It's secure your data can not be accessed by anyone else
  * Your data is compressed, NATS isn't great for large payloads but this will help a bit
