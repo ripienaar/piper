@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"runtime"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -80,7 +81,7 @@ func main() {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "failed to run: %v\n", err)
 		cancel()
-		os.Exit(1)
+		runtime.Goexit()
 	}
 }
 

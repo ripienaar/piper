@@ -120,7 +120,7 @@ func compress(data string) ([]byte, error) {
 func hasJS(nc *nats.Conn, timeout time.Duration) bool {
 	res, err := nc.Request(server.JetStreamEnabled, nil, timeout)
 
-	return err == nil && strings.HasPrefix(server.OK, string(res.Data))
+	return err == nil && strings.HasPrefix(string(res.Data), server.OK)
 }
 
 func createMessageSet(timeout time.Duration, nc *nats.Conn) error {
@@ -129,7 +129,7 @@ func createMessageSet(timeout time.Duration, nc *nats.Conn) error {
 		return err
 	}
 
-	if strings.HasPrefix("{", string(res.Data)) {
+	if strings.HasPrefix(string(res.Data), "}") {
 		return nil
 	}
 
@@ -151,7 +151,7 @@ func createMessageSet(timeout time.Duration, nc *nats.Conn) error {
 		return err
 	}
 
-	if strings.HasPrefix(server.OK, string(res.Data)) {
+	if strings.HasPrefix(string(res.Data), server.OK) {
 		return nil
 	}
 
@@ -199,7 +199,7 @@ func createObservable(name string, timeout time.Duration, nc *nats.Conn) error {
 		return err
 	}
 
-	if strings.HasPrefix(server.OK, string(res.Data)) {
+	if strings.HasPrefix(string(res.Data), server.OK) {
 		return nil
 	}
 

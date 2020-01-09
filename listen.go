@@ -63,10 +63,16 @@ func (l *Listener) Listen(ctx context.Context) error {
 		}()
 	} else if l.Group {
 		log.Debugf("Listening on %s in a work group", l.DataSubj)
-		l.nc.QueueSubscribe(l.DataSubj, "piper", l.ibHandler)
+		_, err := l.nc.QueueSubscribe(l.DataSubj, "piper", l.ibHandler)
+		if err != nil {
+			l.errc <- err
+		}
 	} else {
 		log.Debugf("Listening on %s", l.DataSubj)
-		l.nc.Subscribe(l.DataSubj, l.ibHandler)
+		_, err := l.nc.Subscribe(l.DataSubj, l.ibHandler)
+		if err != nil {
+			l.errc <- err
+		}
 	}
 
 	select {
@@ -78,13 +84,19 @@ func (l *Listener) Listen(ctx context.Context) error {
 }
 
 func (l *Listener) close() {
-	l.nc.Flush()
+	err := l.nc.Flush()
+	if err != nil {
+		log.Warnf("Could not flush NATS connection: %s", err)
+	}
 	l.nc.Close()
 }
 
 func (l *Listener) ibHandler(m *nats.Msg) {
 	if !async {
-		m.Sub.Unsubscribe()
+		err := m.Sub.Unsubscribe()
+		if err != nil {
+			log.Warnf("Could not unsubscribe from data subject: %s", err)
+		}
 	}
 
 	err := m.Respond([]byte{})
