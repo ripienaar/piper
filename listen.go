@@ -52,7 +52,9 @@ func (l *Listener) Listen(ctx context.Context) error {
 		}
 	}
 
-	if async {
+	switch {
+	case async:
+		log.Debugf("Fetching 1 message from JetStream")
 		go func() {
 			res, err := l.nc.Request(server.JetStreamRequestNextPre+".PIPER."+l.Name, []byte("1"), 8760*time.Hour)
 
@@ -61,13 +63,15 @@ func (l *Listener) Listen(ctx context.Context) error {
 			}
 			l.ibHandler(res)
 		}()
-	} else if l.Group {
+
+	case l.Group:
 		log.Debugf("Listening on %s in a work group", l.DataSubj)
 		_, err := l.nc.QueueSubscribe(l.DataSubj, "piper", l.ibHandler)
 		if err != nil {
 			l.errc <- err
 		}
-	} else {
+
+	default:
 		log.Debugf("Listening on %s", l.DataSubj)
 		_, err := l.nc.Subscribe(l.DataSubj, l.ibHandler)
 		if err != nil {
