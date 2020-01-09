@@ -3,10 +3,11 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/sirupsen/logrus"
-	kingpin "gopkg.in/alecthomas/kingpin.v2"
 	"os"
 	"time"
+
+	log "github.com/sirupsen/logrus"
+	kingpin "gopkg.in/alecthomas/kingpin.v2"
 )
 
 var (
@@ -16,6 +17,7 @@ var (
 	servers string
 	ngs     bool
 	debug   bool
+	async   bool
 
 	name string
 
@@ -33,6 +35,8 @@ func main() {
 	piper.Flag("servers", "NATS servers").Envar("PIPER_SERVERS").StringVar(&servers)
 	piper.Flag("ngs", "Use Synadia NGS").Envar("PIPER_NGS").BoolVar(&ngs)
 	piper.Flag("debug", "Enable debug logging").BoolVar(&debug)
+	piper.Flag("async", "Operates asynchronously using JetStream work queues").Envar("PIPER_ASYNC").Short('a').BoolVar(&async)
+	piper.Flag("timeout", "How long to wait for a listener to login before giving up").Envar("PIPER_TIMEOUT").DurationVar(&notifierTimeout)
 
 	listener = piper.Command("listen", "Listen for messages on the pipe")
 	listener.Arg("name", "Pipe name to wait on for a message").Required().StringVar(&name)
@@ -41,7 +45,8 @@ func main() {
 	notifier = piper.Command("notify", "Notifies listeners").Default()
 	notifier.Arg("name", "Pipe name to publish a message to").Required().StringVar(&name)
 	notifier.Arg("message", "The message to sent, reads STDIN otherwise").StringVar(&notifierMessage)
-	notifier.Flag("timeout", "How long to wait for a listener to login before giving up").Default("1h").Envar("PIPER_TIMEOUT").DurationVar(&notifierTimeout)
+
+	piper.Command("setup", "Creates JetStream configuration to enable asynchronous functionality")
 
 	command := kingpin.MustParse(piper.Parse(os.Args[1:]))
 	var err error
@@ -49,9 +54,9 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	logrus.SetOutput(os.Stderr)
+	log.SetOutput(os.Stderr)
 	if debug {
-		logrus.SetLevel(logrus.DebugLevel)
+		log.SetLevel(log.DebugLevel)
 	}
 
 	if ngs && servers == "" {
@@ -65,13 +70,33 @@ func main() {
 	case "notify":
 		err = NewNotifier().Notify(ctx)
 
+	case "setup":
+		err = asyncSetup()
+
 	default:
 		err = fmt.Errorf("invalid command %s", command)
 	}
 
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to run: %v", err)
+		fmt.Fprintf(os.Stderr, "failed to run: %v\n", err)
 		cancel()
 		os.Exit(1)
 	}
+}
+
+func asyncSetup() error {
+	nc, err := connect(creds, servers)
+	if err != nil {
+		return err
+	}
+	defer nc.Close()
+
+	err = createMessageSet(2*time.Second, nc)
+	if err != nil {
+		return err
+	}
+
+	log.Info("Created 'PIPER' Message Set")
+
+	return nil
 }

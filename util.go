@@ -3,9 +3,14 @@ package main
 import (
 	"bytes"
 	"compress/gzip"
+	"encoding/json"
+	"fmt"
 	"io/ioutil"
+	"strings"
+	"time"
 
 	"github.com/mitchellh/go-homedir"
+	"github.com/nats-io/nats-server/v2/server"
 	nats "github.com/nats-io/nats.go"
 	"github.com/sirupsen/logrus"
 	log "github.com/sirupsen/logrus"
@@ -110,4 +115,101 @@ func compress(data string) ([]byte, error) {
 	}
 
 	return b.Bytes(), nil
+}
+
+func hasJS(nc *nats.Conn, timeout time.Duration) bool {
+	res, err := nc.Request(server.JetStreamEnabled, nil, timeout)
+
+	return err == nil && strings.HasPrefix(server.OK, string(res.Data))
+}
+
+func createMessageSet(timeout time.Duration, nc *nats.Conn) error {
+	res, err := nc.Request(server.JetStreamMsgSetInfo, []byte("PIPER"), timeout)
+	if err != nil {
+		return err
+	}
+
+	if strings.HasPrefix("{", string(res.Data)) {
+		return nil
+	}
+
+	cfg := server.MsgSetConfig{
+		Name:      "PIPER",
+		Subjects:  []string{"piper.ASYNC.>"},
+		Retention: server.WorkQueuePolicy,
+		MaxAge:    24 * 7 * time.Hour,
+		Storage:   server.FileStorage,
+	}
+
+	j, err := json.Marshal(&cfg)
+	if err != nil {
+		return err
+	}
+
+	res, err = nc.Request(server.JetStreamCreateMsgSet, j, timeout)
+	if err != nil {
+		return err
+	}
+
+	if strings.HasPrefix(server.OK, string(res.Data)) {
+		return nil
+	}
+
+	return fmt.Errorf("%s", string(res.Data))
+}
+
+func createObservable(name string, timeout time.Duration, nc *nats.Conn) error {
+	res, err := nc.Request(server.JetStreamObservables, []byte("PIPER"), timeout)
+	if err != nil {
+		return err
+	}
+
+	list := []string{}
+	err = json.Unmarshal(res.Data, &list)
+	if err != nil {
+		return err
+	}
+
+	for _, o := range list {
+		if o == name {
+			log.Debugf("Observable %s already exist, no need to create", name)
+			return nil
+		}
+	}
+
+	cfg := server.CreateObservableRequest{
+		MsgSet: "PIPER",
+		Config: server.ObservableConfig{
+			Delivery:      "",
+			Durable:       name,
+			DeliverAll:    true,
+			AckPolicy:     server.AckExplicit,
+			AckWait:       30 * time.Second,
+			FilterSubject: asyncName(name),
+		},
+	}
+
+	j, err := json.Marshal(&cfg)
+	if err != nil {
+		return err
+	}
+
+	res, err = nc.Request(server.JetStreamCreateObservable, j, timeout)
+	if err != nil {
+		return err
+	}
+
+	if strings.HasPrefix(server.OK, string(res.Data)) {
+		return nil
+	}
+
+	return fmt.Errorf("%s", string(res.Data))
+}
+
+func asyncName(s string) string {
+	return "piper.ASYNC." + s
+}
+
+func syncName(s string) string {
+	return "piper." + s
 }

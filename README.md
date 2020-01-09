@@ -5,8 +5,9 @@ Piper is a [https://patchbay.pub/](https://patchbay.pub/) inspired shell tool th
 You can use it to build things like network aware clipboards, notifications from servers to your desktop, ad hoc assembled work queues for doing shell based work on many cores and more.
 
  * It has two basic modes of operation: multi consumer and multi producer or a work queue style multi producer to a load shared group of consumers
- * The publisher will block until there are consumers, by default it will give up after 1 hour, you can adjust this using `--timeout 5m` or by setting `PIPER_TIMEOUT=5m` for example
- * No data is stored, it's all ephemeral and the data is private to either your own NATS servers or your account on Synadia NGS (NATS as a Service). This means we won't be doing anything like serving web pages but with the shell utility scope I quite like it
+ * By default the publisher will block until there are consumers, by default it will give up after 1 hour, you can adjust this using `--timeout 5m` or by setting `PIPER_TIMEOUT=5m` for example
+ * An, asynchronous mode that avoid above blocking, is support if you have NATS JetStream
+ * In synchronous mode no data is stored, it's all ephemeral and the data is private to either your own NATS servers or your account on Synadia NGS (NATS as a Service). This means we won't be doing anything like serving web pages but with the shell utility scope I quite like it
  * It's secure your data can not be accessed by anyone else
  * Your data is compressed, NATS isn't great for large payloads but this will help a bit
 
@@ -83,6 +84,14 @@ done
 
 Your images will now be resized using max 2 cores.
 
+## Asynchronous Mode
+
+The examples above shows a blocking - synchronous - operation. While no persistence is needed it does mean your notifier is coupled to your listener and if either dies so does all progress.
+
+Piper supports NATS JetStream (currently in preview) for persistence, in this case the notifier will publish data into JetStream and the listener will read from JetStream like a work queue.
+
+If your NATS network has JetStream you can do `piper setup` to configure the required settings in JetStream and pass `-a` or set `PIPER_ASYNC=1` in your environment.  Once this is done Piper will be asynchronous.
+
 ## Setup
 
 To use it you need a [NATS](https://nats.io) server, or you can sign up for a free [NGS](https://synadia.com/ngs) account.
@@ -90,6 +99,8 @@ To use it you need a [NATS](https://nats.io) server, or you can sign up for a fr
 To use your own NATS server set `PIPER_SERVER=your.nats.server:4222`.
 
 If you need a NATS credential, such as with NGS or your own account enabled NATS, set `PIPER_CREDENTIAL=/path/to/your.creds` or place the same file in `~/.piper.creds`.
+
+When in persistent mode data is kept for up to 24 hours or until any listener consumed it whichever comes first.
 
 ### Synadia NGS
 

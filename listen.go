@@ -3,7 +3,9 @@ package main
 import (
 	"context"
 	"fmt"
+	"time"
 
+	"github.com/nats-io/nats-server/v2/server"
 	"github.com/nats-io/nats.go"
 	log "github.com/sirupsen/logrus"
 )
@@ -39,7 +41,27 @@ func (l *Listener) Listen(ctx context.Context) error {
 	}
 	defer l.close()
 
-	if l.Group {
+	if async {
+		if !hasJS(l.nc, 2*time.Second) {
+			return fmt.Errorf("asynchronous operation required JetStream")
+		}
+
+		err = createObservable(l.Name, 2*time.Second, l.nc)
+		if err != nil {
+			return fmt.Errorf("could not set up observable: %s", err)
+		}
+	}
+
+	if async {
+		go func() {
+			res, err := l.nc.Request(server.JetStreamRequestNextPre+".PIPER."+l.Name, []byte("1"), 8760*time.Hour)
+
+			if err != nil {
+				l.errc <- fmt.Errorf("async request failed: %s", err)
+			}
+			l.ibHandler(res)
+		}()
+	} else if l.Group {
 		log.Debugf("Listening on %s in a work group", l.DataSubj)
 		l.nc.QueueSubscribe(l.DataSubj, "piper", l.ibHandler)
 	} else {
@@ -61,7 +83,9 @@ func (l *Listener) close() {
 }
 
 func (l *Listener) ibHandler(m *nats.Msg) {
-	m.Sub.Unsubscribe()
+	if !async {
+		m.Sub.Unsubscribe()
+	}
 
 	err := m.Respond([]byte{})
 	if err != nil {

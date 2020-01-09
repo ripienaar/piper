@@ -7,6 +7,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/nats-io/nats.go"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -20,18 +21,27 @@ type Notifier struct {
 }
 
 func NewNotifier() *Notifier {
+	var sub string
+	if async {
+		sub = asyncName(name)
+	} else {
+		sub = syncName(name)
+	}
+
 	return &Notifier{
 		Name:        name,
 		Credentials: creds,
 		Servers:     servers,
-		Subject:     "piper." + name,
 		Message:     notifierMessage,
 		Timeout:     notifierTimeout,
+		Subject:     sub,
 	}
 }
 
 func (n *Notifier) Notify(ctx context.Context) error {
-	if n.Timeout == 0 {
+	if n.Timeout == 0 && async {
+		n.Timeout = 2 * time.Second
+	} else if n.Timeout == 0 {
 		n.Timeout = 1 * time.Hour
 	}
 
@@ -43,6 +53,17 @@ func (n *Notifier) Notify(ctx context.Context) error {
 	nc, err := connect(n.Credentials, n.Servers)
 	if err != nil {
 		return fmt.Errorf("could not connect to NATS: %s", err)
+	}
+
+	if async {
+		if !hasJS(nc, n.Timeout) {
+			return fmt.Errorf("JetStream is not enabled, cannot operate asynchronously")
+		}
+
+		err = n.createObservable(nc)
+		if err != nil {
+			return fmt.Errorf("could not create JetStream Observable: %s", err)
+		}
 	}
 
 	if n.Message == "" {
@@ -81,4 +102,8 @@ func (n *Notifier) Notify(ctx context.Context) error {
 			return fmt.Errorf("timeout after %v", n.Timeout)
 		}
 	}
+}
+
+func (n *Notifier) createObservable(nc *nats.Conn) error {
+	return createObservable(n.Name, n.Timeout, nc)
 }
