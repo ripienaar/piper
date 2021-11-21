@@ -8,17 +8,15 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
-	kingpin "gopkg.in/alecthomas/kingpin.v2"
+	"gopkg.in/alecthomas/kingpin.v2"
 )
 
 var (
 	piper *kingpin.Application
 
-	creds   string
-	servers string
-	ngs     bool
-	debug   bool
-	async   bool
+	debug bool
+	async bool
+	nctx  string
 
 	name string
 
@@ -32,12 +30,10 @@ var (
 
 func main() {
 	piper = kingpin.New("piper", "Network pipes")
-	piper.Flag("creds", "NATS credentials").Envar("PIPER_CREDENTIALS").StringVar(&creds)
-	piper.Flag("servers", "NATS servers").Envar("PIPER_SERVERS").StringVar(&servers)
-	piper.Flag("ngs", "Use Synadia NGS").Envar("PIPER_NGS").BoolVar(&ngs)
-	piper.Flag("debug", "Enable debug logging").BoolVar(&debug)
+	piper.Flag("context", "NATS context to use for connection").Envar("PIPER_CONTEXT").Default("piper").StringVar(&nctx)
 	piper.Flag("async", "Operates asynchronously using JetStream work queues").Envar("PIPER_ASYNC").Short('a').BoolVar(&async)
 	piper.Flag("timeout", "How long to wait for a listener to login before giving up").Envar("PIPER_TIMEOUT").DurationVar(&notifierTimeout)
+	piper.Flag("debug", "Enable debug logging").BoolVar(&debug)
 
 	listener = piper.Command("listen", "Listen for messages on the pipe")
 	listener.Arg("name", "Pipe name to wait on for a message").Required().StringVar(&name)
@@ -58,10 +54,6 @@ func main() {
 	log.SetOutput(os.Stderr)
 	if debug {
 		log.SetLevel(log.DebugLevel)
-	}
-
-	if ngs && servers == "" {
-		servers = "connect.ngs.global:4222"
 	}
 
 	switch command {
@@ -86,18 +78,18 @@ func main() {
 }
 
 func asyncSetup() error {
-	nc, err := connect(creds, servers)
+	nc, err := connect(nctx)
 	if err != nil {
 		return err
 	}
 	defer nc.Close()
 
-	err = createMessageSet(2*time.Second, nc)
+	_, err = createStream(2*time.Second, nc)
 	if err != nil {
 		return err
 	}
 
-	log.Info("Created 'PIPER' Message Set")
+	log.Info("Created 'PIPER' Stream")
 
 	return nil
 }

@@ -12,12 +12,11 @@ import (
 )
 
 type Notifier struct {
-	Name        string
-	Credentials string
-	Servers     string
-	Subject     string
-	Message     string
-	Timeout     time.Duration
+	Name    string
+	Context string
+	Subject string
+	Message string
+	Timeout time.Duration
 }
 
 func NewNotifier() *Notifier {
@@ -29,12 +28,11 @@ func NewNotifier() *Notifier {
 	}
 
 	return &Notifier{
-		Name:        name,
-		Credentials: creds,
-		Servers:     servers,
-		Message:     notifierMessage,
-		Timeout:     notifierTimeout,
-		Subject:     sub,
+		Name:    name,
+		Context: nctx,
+		Message: notifierMessage,
+		Timeout: notifierTimeout,
+		Subject: sub,
 	}
 }
 
@@ -45,12 +43,12 @@ func (n *Notifier) Notify(ctx context.Context) error {
 		n.Timeout = 1 * time.Hour
 	}
 
-	log.Debugf("Publishing to %s with a timeout of %v", n.Name, n.Timeout)
+	log.Debugf("Publishing to %s with a timeout of %v", n.Subject, n.Timeout)
 
 	timeout, cancel := context.WithTimeout(ctx, n.Timeout)
 	defer cancel()
 
-	nc, err := connect(n.Credentials, n.Servers)
+	nc, err := connect(n.Context)
 	if err != nil {
 		return fmt.Errorf("could not connect to NATS: %s", err)
 	}
@@ -105,5 +103,5 @@ func (n *Notifier) Notify(ctx context.Context) error {
 }
 
 func (n *Notifier) createObservable(nc *nats.Conn) error {
-	return createObservable(n.Name, n.Timeout, nc)
+	return createConsumer(n.Name, n.Timeout, nc)
 }

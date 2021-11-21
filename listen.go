@@ -5,17 +5,16 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/nats-io/nats-server/v2/server"
+	"github.com/nats-io/jsm.go"
 	"github.com/nats-io/nats.go"
 	log "github.com/sirupsen/logrus"
 )
 
 type Listener struct {
-	Name        string
-	Group       bool
-	Credentials string
-	Servers     string
-	DataSubj    string
+	Name     string
+	Group    bool
+	Context  string
+	DataSubj string
 
 	nc   *nats.Conn
 	errc chan error
@@ -23,19 +22,18 @@ type Listener struct {
 
 func NewListener() *Listener {
 	return &Listener{
-		Name:        name,
-		Group:       listenGroup,
-		Credentials: creds,
-		Servers:     servers,
-		DataSubj:    "piper." + name,
-		errc:        make(chan error),
+		Name:     name,
+		Group:    listenGroup,
+		Context:  nctx,
+		DataSubj: "piper." + name,
+		errc:     make(chan error),
 	}
 }
 
 func (l *Listener) Listen(ctx context.Context) error {
 	var err error
 
-	l.nc, err = connect(l.Credentials, l.Servers)
+	l.nc, err = connect(l.Context)
 	if err != nil {
 		return fmt.Errorf("could not connect to NATS: %s", err)
 	}
@@ -46,7 +44,7 @@ func (l *Listener) Listen(ctx context.Context) error {
 			return fmt.Errorf("asynchronous operation required JetStream")
 		}
 
-		err = createObservable(l.Name, 2*time.Second, l.nc)
+		err = createConsumer(l.Name, 2*time.Second, l.nc)
 		if err != nil {
 			return fmt.Errorf("could not set up observable: %s", err)
 		}
@@ -54,14 +52,35 @@ func (l *Listener) Listen(ctx context.Context) error {
 
 	switch {
 	case async:
-		log.Debugf("Fetching 1 message from JetStream")
 		go func() {
-			res, err := l.nc.Request(server.JetStreamRequestNextPre+".PIPER."+l.Name, []byte("1"), 8760*time.Hour)
-
+			mgr, err := jsm.New(l.nc)
 			if err != nil {
-				l.errc <- fmt.Errorf("async request failed: %s", err)
+				l.errc <- err
+				return
 			}
-			l.ibHandler(res)
+
+			for {
+				stop, err := func() (bool, error) {
+					log.Debugf("Fetching 1 message from JetStream")
+					rctx, cancel := context.WithTimeout(ctx, time.Minute)
+					defer cancel()
+					msg, err := mgr.NextMsgContext(rctx, "PIPER", l.Name)
+					if err != nil {
+						log.Errorf("Getting next message failed: %s", err)
+						return false, nil
+					}
+					l.ibHandler(msg)
+					msg.Ack()
+					return true, nil
+				}()
+				if err != nil {
+					l.errc <- err
+					return
+				}
+				if stop {
+					return
+				}
+			}
 		}()
 
 	case l.Group:
