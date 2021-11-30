@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+	rd "runtime/debug"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -30,6 +31,8 @@ var (
 
 func main() {
 	piper = kingpin.New("piper", "Network pipes")
+	piper.Version(getVersion())
+
 	piper.Flag("context", "NATS context to use for connection").Envar("PIPER_CONTEXT").Default("piper").StringVar(&nctx)
 	piper.Flag("async", "Operates asynchronously using JetStream work queues").Envar("PIPER_ASYNC").Short('a').BoolVar(&async)
 	piper.Flag("timeout", "How long to wait for a listener to login before giving up").Envar("PIPER_TIMEOUT").DurationVar(&notifierTimeout)
@@ -92,4 +95,13 @@ func asyncSetup() error {
 	log.Info("Created 'PIPER' Stream")
 
 	return nil
+}
+
+func getVersion() string {
+	mods, ok := rd.ReadBuildInfo()
+	if !ok {
+		return "development"
+	}
+
+	return mods.Main.Version
 }
